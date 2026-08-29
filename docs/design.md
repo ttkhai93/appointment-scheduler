@@ -83,7 +83,7 @@ failing on the first race.
 | Method / Path | Purpose |
 |---------------|---------|
 | GET `/health` | Liveness + DB ping |
-| GET `/api/dealerships`, `/api/service-types`, `/api/technicians`, `/api/service-bays` | Reference data |
+| GET `/api/dealerships`, `/api/service-types`, `/api/technicians`, `/api/service-bays`, `/api/technician-qualifications`, `/api/business-hours` | Read-only reference data |
 | GET `/api/availability?dealership_id&service_type_id&date` | Free slots for a date |
 | GET `/api/availability/check?…&start_time` | Advisory check for one time |
 | POST `/api/appointments` | Create booking (customer + vehicle + appointment atomically) |

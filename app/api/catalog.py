@@ -1,7 +1,17 @@
 from fastapi import APIRouter
 
 from app.dependencies import DbSession
-from app.schemas import DealershipOut, ServiceBayOut, ServiceTypeOut, TechnicianOut
+from app.schemas import (
+    BusinessHoursOut,
+    DealershipOut,
+    ServiceBayOut,
+    ServiceTypeOut,
+    TechnicianOut,
+    TechnicianQualificationOut,
+)
+from app.services.catalog import (
+    list_business_hours as fetch_business_hours,
+)
 from app.services.catalog import (
     list_dealerships as fetch_dealerships,
 )
@@ -10,6 +20,9 @@ from app.services.catalog import (
 )
 from app.services.catalog import (
     list_service_types as fetch_service_types,
+)
+from app.services.catalog import (
+    list_technician_qualifications as fetch_technician_qualifications,
 )
 from app.services.catalog import (
     list_technicians as fetch_technicians,
@@ -36,9 +49,28 @@ async def list_technicians(
     return await fetch_technicians(session, dealership_id)
 
 
+@router.get(
+    "/technician-qualifications",
+    response_model=list[TechnicianQualificationOut],
+)
+async def list_technician_qualifications(
+    session: DbSession,
+    dealership_id: int | None = None,
+):
+    return await fetch_technician_qualifications(session, dealership_id)
+
+
 @router.get("/service-bays", response_model=list[ServiceBayOut])
 async def list_service_bays(
     session: DbSession,
     dealership_id: int | None = None,
 ):
     return await fetch_service_bays(session, dealership_id)
+
+
+@router.get("/business-hours", response_model=list[BusinessHoursOut])
+async def list_business_hours(
+    session: DbSession,
+    dealership_id: int | None = None,
+):
+    return await fetch_business_hours(session, dealership_id)

@@ -35,7 +35,9 @@ Walk through the booking flow end to end in the interactive API docs
 (Swagger UI) at http://localhost:8000/docs, in this order:
 
 1. `GET /api/dealerships`, `GET /api/service-types`, and
-   `GET /api/technicians?dealership_id=1` to look up reference data.
+   `GET /api/technicians?dealership_id=1` to look up reference data
+   (`/api/technician-qualifications` and `/api/business-hours` are also
+   available read-only).
 2. `GET /api/availability?dealership_id=1&service_type_id=1&date=2026-09-01`
    to check slots for a date (60-minute grid, interpreted in the dealership's
    timezone), or `GET /api/availability/check` to verify a specific start time

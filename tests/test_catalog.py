@@ -32,3 +32,32 @@ async def test_service_bays(client, seed_ids):
     )
     assert response.status_code == 200
     assert len(response.json()) == 3
+
+
+async def test_technician_qualifications(client, seed_ids):
+    response = await client.get(
+        f"/api/technician-qualifications?dealership_id={seed_ids['dealership_id']}"
+    )
+    assert response.status_code == 200
+    qualifications = response.json()
+    oil_id = seed_ids["oil_change_id"]
+    assert any(q["service_type_id"] == oil_id for q in qualifications)
+    for q in qualifications:
+        assert q["technician_id"]
+        assert q["technician_name"]
+        assert q["service_type_id"]
+        assert q["service_type_name"]
+
+
+async def test_business_hours(client, seed_ids):
+    response = await client.get(
+        f"/api/business-hours?dealership_id={seed_ids['dealership_id']}"
+    )
+    assert response.status_code == 200
+    hours = response.json()
+    assert len(hours) == 6  # Mon–Fri full day, Saturday half day.
+    assert hours[0]["day_of_week"] == 0
+    assert hours[0]["open_time"] == "08:00:00"
+    assert hours[0]["close_time"] == "17:30:00"
+    assert hours[-1]["day_of_week"] == 5
+    assert hours[-1]["close_time"] == "12:00:00"

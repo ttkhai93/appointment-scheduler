@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -79,6 +79,24 @@ class DealershipOut(BaseModel):
     name: str
     address: str
     timezone: str
+
+
+class BusinessHoursOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    dealership_id: int
+    # Python weekday(): 0 = Monday ... 6 = Sunday.
+    day_of_week: int
+    open_time: time
+    close_time: time
+
+
+class TechnicianQualificationOut(BaseModel):
+    technician_id: int
+    technician_name: str
+    service_type_id: int
+    service_type_name: str
 
 
 class AppointmentOut(BaseModel):
