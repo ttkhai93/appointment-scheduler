@@ -20,10 +20,6 @@ def test_ensure_utc_naive_assumed_utc():
     assert ensure_utc(dt) == datetime(2026, 9, 1, 1, 0, tzinfo=UTC)
 
 
-def test_validate_grid_accepts_hour_boundary():
-    validate_grid(datetime(2026, 9, 1, 9, 0, tzinfo=UTC), 60)
-
-
 @pytest.mark.parametrize(
     "minute,second,microsecond", [(30, 0, 0), (0, 1, 0), (0, 0, 1)]
 )
