@@ -36,10 +36,15 @@ requirements were ambiguous, the agreed decisions are in §3.
   (404/409/422); thin layer, no business logic.
 - **Services (`app/services/`)** — availability slot math, qualification/overlap
   checks, and the atomic booking transaction with bounded retry.
-- **SQLAlchemy models ↔ PostgreSQL** — single source of truth; exclusion
-  constraints make overlapping bookings impossible at the DB level.
-- **Alembic** — versioned migrations. **Seed script** — idempotent dev data
-  (1 dealership, 5 services, 4 techs, 3 bays).
+- **Data access (`app/models.py`, `app/database.py`)** — ORM models and async
+  engine/session management; the typed boundary between services and the store.
+- **PostgreSQL** — the database and source of truth; exclusion constraints make
+  overlapping bookings impossible at the DB level.
+- **Configuration (`app/config.py`)** — settings (DB URL, hours, timezone)
+  consumed by the rest of the app.
+
+Schema migrations (Alembic) and the idempotent dev seed script are tooling, not
+runtime components; they are covered in §8.
 
 ## 5. Data flow
 
