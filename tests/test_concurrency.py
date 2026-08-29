@@ -16,6 +16,7 @@ def _payload(seed_ids, email, start="2026-09-01T08:00:00+07:00"):
 
 
 async def test_concurrent_double_booking_exactly_one_wins(client, seed_ids):
+    """With one slot left, concurrent duplicate bookings yield exactly one success and one conflict."""
     # Pre-book 2 of the 3 bays at the same slot so exactly one of the
     # concurrent requests can win.
     for email in ("pre1@example.com", "pre2@example.com"):
@@ -39,6 +40,7 @@ async def test_concurrent_double_booking_exactly_one_wins(client, seed_ids):
 
 
 async def test_concurrent_full_capacity_bookings(client, seed_ids):
+    """Concurrent requests can fill all capacity, with the overflow booking rejected."""
     payloads = [
         {
             "dealership_id": seed_ids["dealership_id"],

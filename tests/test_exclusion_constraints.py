@@ -7,6 +7,25 @@ from sqlalchemy.exc import IntegrityError
 from app.models import Appointment, Customer, ServiceBay, Technician, Vehicle
 
 
+async def _add_customer_and_vehicle(session):
+    customer = Customer(
+        email="db-constraint@example.com",
+        phone="+84901234567",
+        full_name="DB Constraint",
+    )
+    session.add(customer)
+    await session.flush()
+    vehicle = Vehicle(
+        customer_id=customer.id,
+        make="Toyota",
+        model="Corolla",
+    )
+    session.add(vehicle)
+    await session.flush()
+    await session.commit()
+    return customer.id, vehicle.id
+
+
 def _appointment(
     seed_ids,
     customer_id,
@@ -30,23 +49,8 @@ def _appointment(
 
 
 async def test_exclusion_constraint_blocks_overlap(db_session, seed_ids):
-    customer = Customer(
-        email="db-constraint@example.com",
-        phone="+84901234567",
-        full_name="DB Constraint",
-    )
-    db_session.add(customer)
-    await db_session.flush()
-    vehicle = Vehicle(
-        customer_id=customer.id,
-        make="Toyota",
-        model="Corolla",
-    )
-    db_session.add(vehicle)
-    await db_session.flush()
-    await db_session.commit()
-    customer_id = customer.id
-    vehicle_id = vehicle.id
+    """DB exclusion constraint rejects overlapping appointments while allowing back-to-back ones."""
+    customer_id, vehicle_id = await _add_customer_and_vehicle(db_session)
     technician = await db_session.scalar(select(Technician).limit(1))
     bay = await db_session.scalar(select(ServiceBay).limit(1))
     technician_id = technician.id
@@ -94,3 +98,83 @@ async def test_exclusion_constraint_blocks_overlap(db_session, seed_ids):
         )
     )
     await db_session.flush()
+
+
+async def test_exclusion_constraint_blocks_technician_overlap_across_bays(
+    db_session, seed_ids
+):
+    """Same technician at overlapping times is rejected even in different bays."""
+    customer_id, vehicle_id = await _add_customer_and_vehicle(db_session)
+    technicians = list(
+        (await db_session.scalars(select(Technician).order_by(Technician.id))).all()
+    )
+    bays = list(
+        (await db_session.scalars(select(ServiceBay).order_by(ServiceBay.id))).all()
+    )
+
+    db_session.add(
+        _appointment(
+            seed_ids,
+            customer_id,
+            vehicle_id,
+            technicians[0].id,
+            bays[0].id,
+            datetime(2026, 9, 1, 1, 0, tzinfo=UTC),
+            datetime(2026, 9, 1, 2, 0, tzinfo=UTC),
+        )
+    )
+    await db_session.flush()
+
+    db_session.add(
+        _appointment(
+            seed_ids,
+            customer_id,
+            vehicle_id,
+            technicians[0].id,
+            bays[1].id,
+            datetime(2026, 9, 1, 1, 30, tzinfo=UTC),
+            datetime(2026, 9, 1, 2, 30, tzinfo=UTC),
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+
+async def test_exclusion_constraint_blocks_bay_overlap_across_technicians(
+    db_session, seed_ids
+):
+    """Same bay at overlapping times is rejected even with different technicians."""
+    customer_id, vehicle_id = await _add_customer_and_vehicle(db_session)
+    technicians = list(
+        (await db_session.scalars(select(Technician).order_by(Technician.id))).all()
+    )
+    bay = await db_session.scalar(select(ServiceBay).limit(1))
+
+    db_session.add(
+        _appointment(
+            seed_ids,
+            customer_id,
+            vehicle_id,
+            technicians[0].id,
+            bay.id,
+            datetime(2026, 9, 1, 1, 0, tzinfo=UTC),
+            datetime(2026, 9, 1, 2, 0, tzinfo=UTC),
+        )
+    )
+    await db_session.flush()
+
+    db_session.add(
+        _appointment(
+            seed_ids,
+            customer_id,
+            vehicle_id,
+            technicians[1].id,
+            bay.id,
+            datetime(2026, 9, 1, 1, 30, tzinfo=UTC),
+            datetime(2026, 9, 1, 2, 30, tzinfo=UTC),
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()

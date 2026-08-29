@@ -21,6 +21,7 @@ def _payload(seed_ids):
 
 
 async def test_appointment_persists_across_sessions(client, db_session, seed_ids):
+    """A booked appointment is persisted with customer, resource assignments, and times."""
     response = await client.post("/api/appointments", json=_payload(seed_ids))
     assert response.status_code == 201
     appointment_id = response.json()["id"]
@@ -41,6 +42,7 @@ async def test_appointment_persists_across_sessions(client, db_session, seed_ids
 
 
 async def test_appointment_get_and_list(client, seed_ids):
+    """Appointments can be fetched by ID and listed by dealership, with 404 for unknown IDs."""
     created = await client.post("/api/appointments", json=_payload(seed_ids))
     appointment_id = created.json()["id"]
 
@@ -58,3 +60,47 @@ async def test_appointment_get_and_list(client, seed_ids):
 
     missing = await client.get("/api/appointments/999999")
     assert missing.status_code == 404
+
+
+async def test_appointment_list_filters_by_time_and_dealership(client, seed_ids):
+    """List endpoint filters appointments by start_from, start_to, and dealership."""
+    morning = _payload(seed_ids)
+    morning["customer"]["email"] = "morning@example.com"
+    first = await client.post("/api/appointments", json=morning)
+    assert first.status_code == 201, first.text
+
+    midday = _payload(seed_ids)
+    midday["start_time"] = "2026-09-01T09:00:00+07:00"
+    midday["customer"]["email"] = "midday@example.com"
+    second = await client.post("/api/appointments", json=midday)
+    assert second.status_code == 201, second.text
+
+    start_from = await client.get(
+        "/api/appointments",
+        params={
+            "dealership_id": seed_ids["dealership_id"],
+            "start_from": "2026-09-01T08:30:00+07:00",
+        },
+    )
+    assert [item["id"] for item in start_from.json()] == [second.json()["id"]]
+
+    start_to = await client.get(
+        "/api/appointments",
+        params={
+            "dealership_id": seed_ids["dealership_id"],
+            "start_to": "2026-09-01T08:30:00+07:00",
+        },
+    )
+    assert [item["id"] for item in start_to.json()] == [first.json()["id"]]
+
+    all_appointments = await client.get("/api/appointments")
+    assert [item["id"] for item in all_appointments.json()] == [
+        first.json()["id"],
+        second.json()["id"],
+    ]
+
+    unknown_dealership = await client.get(
+        "/api/appointments", params={"dealership_id": 9999}
+    )
+    assert unknown_dealership.status_code == 200
+    assert unknown_dealership.json() == []
