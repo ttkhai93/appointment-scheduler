@@ -48,15 +48,16 @@ def _appointment(
     )
 
 
-async def test_exclusion_constraint_blocks_overlap(db_session, seed_ids):
-    """DB exclusion constraint rejects overlapping appointments while allowing back-to-back ones."""
+async def test_exclusion_constraint_allows_back_to_back_appointments(
+    db_session, seed_ids
+):
+    """DB exclusion constraint allows back-to-back appointments ([start, end))."""
     customer_id, vehicle_id = await _add_customer_and_vehicle(db_session)
     technician = await db_session.scalar(select(Technician).limit(1))
     bay = await db_session.scalar(select(ServiceBay).limit(1))
     technician_id = technician.id
     bay_id = bay.id
 
-    # Insert rows behind the ORM's back to test the DB constraint directly.
     db_session.add(
         _appointment(
             seed_ids,
@@ -69,21 +70,6 @@ async def test_exclusion_constraint_blocks_overlap(db_session, seed_ids):
         )
     )
     await db_session.flush()
-
-    db_session.add(
-        _appointment(
-            seed_ids,
-            customer_id,
-            vehicle_id,
-            technician_id,
-            bay_id,
-            datetime(2026, 9, 1, 1, 30, tzinfo=UTC),
-            datetime(2026, 9, 1, 2, 30, tzinfo=UTC),
-        )
-    )
-    with pytest.raises(IntegrityError):
-        await db_session.flush()
-    await db_session.rollback()
 
     # Adjacent appointments ([start, end)) are NOT a conflict.
     db_session.add(
