@@ -5,17 +5,14 @@
 Resource-constrained booking service for vehicle dealerships. A customer
 requests an appointment (vehicle + service type + dealership + start time); the
 service confirms it only if a **qualified technician** and a **service bay**
-are both free for the entire duration, then persists the Appointment. Where the
+are both free for the whole duration, then saves the appointment. Where the
 requirements were ambiguous, the agreed decisions are in §3.
 
 ## 2. Requirements
 
-1. **Resource-constrained booking** — request an appointment for a vehicle,
-   service type, and dealership at a desired time.
-2. **Real-time availability** — before confirming, both a qualified technician
-   and a service bay must be free for the whole service duration.
-3. **Confirmed record** — persist an Appointment linking customer, vehicle,
-   technician, and bay.
+1. **Resource-constrained booking** — book a vehicle + service type + dealership at a chosen time.
+2. **Real-time availability** — a qualified technician and a service bay must be free for the whole duration.
+3. **Confirmed record** — save an appointment linking customer, vehicle, technician, and bay.
 
 ## 3. Assumptions (agreed ambiguities)
 
@@ -25,18 +22,18 @@ requirements were ambiguous, the agreed decisions are in §3.
 | A2 | Free-form vehicle fields (make/model/year/VIN); no catalog lookup. |
 | A3 | Fixed 60-minute booking grid; duration fixed per service type. |
 | A4 | Schema supports many dealerships; one is seeded. |
-| A5 | Business hours per dealership per weekday in its IANA tz; all storage in UTC. |
+| A5 | Business hours per dealership per weekday, in the dealership's IANA tz; stored in UTC. |
 | A6 | No hold step; booking atomically re-checks availability (201 or 409). |
-| A7 | Only create/retrieve; reschedule/cancel/no-show are out of scope. |
+| A7 | Only create/retrieve; reschedule, cancel, and no-show are out of scope. |
 | A8 | Bay/technician are busy for the whole appointment; no setup buffers. |
-| A9 | Bays/technicians belong to one dealership; no cross-dealership sharing. |
+| A9 | Bays/technicians belong to one dealership; no sharing across dealerships. |
 
 ## 4. Architecture
 
 **Component roles**
 
 - **API routes (`app/api/`)** — validation (Pydantic), routing, error mapping
-  (404/409/422); thin, no business logic.
+  (404/409/422); thin layer, no business logic.
 - **Services (`app/services/`)** — availability slot math, qualification/overlap
   checks, and the atomic booking transaction with bounded retry.
 - **SQLAlchemy models ↔ PostgreSQL** — single source of truth; exclusion
@@ -47,12 +44,12 @@ requirements were ambiguous, the agreed decisions are in §3.
 ## 5. Data flow
 
 - **Availability lookup** (`GET /api/availability`): date → business-hours
-  grid (60-min slots, dealership tz → UTC) → per slot, check "any qualified
+  grid (60-min slots, dealership tz → UTC) → for each slot, check "any qualified
   technician free?" and "any bay free?" → return free slots. Advisory only;
-  confirmation happens in booking.
+  booking does the real check.
 - **Booking** (`POST /api/appointments`): validate grid + business hours →
   upsert customer/vehicle → check qualifications, free bays, free technicians
-  → insert Appointment → commit. On an exclusion-constraint race, rollback and
+  → insert appointment → commit. On an exclusion-constraint race, roll back and
   retry with a fresh snapshot (max 5 attempts) → 201 or 409.
 - **Errors**: 404 unknown entity; 422 domain-rule violation (off-grid,
   out-of-hours); 409 no capacity / concurrent loser.
@@ -115,7 +112,7 @@ Timestamps normalize to UTC for storage; responses return UTC.
 | Docker Compose | Postgres for local dev and tests. |
 | ruff + pre-commit | Requested; lint/format gate on commit. |
 
-Rejected: Redis slot holds (DB alone guarantees the invariant), app-level
+Rejected: Redis slot holds (the DB alone guarantees the invariant), app-level
 `SELECT … FOR UPDATE` (weaker than exclusion constraints), SQLite (no exclusion
 constraints).
 
@@ -123,17 +120,16 @@ constraints).
 
 Intentionally removed for review simplicity. Reintroduction plan: structured
 logs with request/trace IDs via middleware; Prometheus `/metrics` (request
-rate/latency, booking confirmed/conflict counters); OpenTelemetry →
-Jaeger traces; Grafana dashboards; extend `docker-compose.yml` with those
-services.
+rate/latency, booking confirmed/conflict counters); OpenTelemetry → Jaeger
+traces; Grafana dashboards; add those services to `docker-compose.yml`.
 
 ## 10. GenAI in the design phase
 
 The assistant helped decompose requirements into acceptance criteria, compare
 concurrency strategies (exclusion constraints chosen and verified against
 Postgres docs), draft the architecture diagram and seed/test designs, and scope
-observability (designed, then deferred after review). All suggested code was
-verified by the test suite and manual cURL checks.
+observability (designed, then deferred after review). The test suite and manual
+cURL checks verified all suggested code.
 
 ## 11. Out of scope
 
