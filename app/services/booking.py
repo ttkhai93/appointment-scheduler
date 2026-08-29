@@ -168,7 +168,6 @@ async def book_appointment(
 
         customer = await upsert_customer(session, payload.customer)
         vehicle = Vehicle(
-            customer_id=customer.id,
             make=payload.vehicle.make,
             model=payload.vehicle.model,
             year=payload.vehicle.year,

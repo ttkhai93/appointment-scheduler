@@ -95,16 +95,11 @@ class Customer(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    vehicles: Mapped[list[Vehicle]] = relationship(back_populates="customer")
-
 
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    customer_id: Mapped[int] = mapped_column(
-        ForeignKey("customers.id", ondelete="CASCADE")
-    )
     make: Mapped[str] = mapped_column(String(80))
     model: Mapped[str] = mapped_column(String(80))
     year: Mapped[int | None] = mapped_column(Integer)
@@ -112,8 +107,6 @@ class Vehicle(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
-    customer: Mapped[Customer] = relationship(back_populates="vehicles")
 
 
 class Appointment(Base):

@@ -16,7 +16,6 @@ async def _add_customer_and_vehicle(session):
     session.add(customer)
     await session.flush()
     vehicle = Vehicle(
-        customer_id=customer.id,
         make="Toyota",
         model="Corolla",
     )

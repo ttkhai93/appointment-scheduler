@@ -64,7 +64,7 @@ requirements were ambiguous, the agreed decisions are in §3.
 | `technician_qualifications` | M2M tech ↔ service type; defines "qualified". |
 | `service_bays` | Physical bay, dealership-scoped. |
 | `customers` | Contact info; unique email (idempotent upsert). |
-| `vehicles` | Free-form car details linked to a customer. |
+| `vehicles` | Free-form car details recorded per appointment. |
 | `appointments` | Booking record: customer, vehicle, tech, bay, service type, UTC start/end, status. |
 
 **No-double-booking guarantee**: `EXCLUDE USING gist` on
