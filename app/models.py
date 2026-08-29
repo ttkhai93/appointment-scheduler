@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
@@ -9,8 +9,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Time,
-    UniqueConstraint,
     func,
     text,
 )
@@ -33,29 +31,6 @@ class Dealership(Base):
 
     technicians: Mapped[list[Technician]] = relationship(back_populates="dealership")
     service_bays: Mapped[list[ServiceBay]] = relationship(back_populates="dealership")
-    business_hours: Mapped[list[BusinessHours]] = relationship(
-        back_populates="dealership"
-    )
-
-
-class BusinessHours(Base):
-    __tablename__ = "business_hours"
-    __table_args__ = (
-        UniqueConstraint(
-            "dealership_id", "day_of_week", name="uq_business_hours_dealership_day"
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    dealership_id: Mapped[int] = mapped_column(
-        ForeignKey("dealerships.id", ondelete="CASCADE")
-    )
-    # Python weekday(): 0 = Monday ... 6 = Sunday.
-    day_of_week: Mapped[int] = mapped_column(Integer)
-    open_time: Mapped[time] = mapped_column(Time)
-    close_time: Mapped[time] = mapped_column(Time)
-
-    dealership: Mapped[Dealership] = relationship(back_populates="business_hours")
 
 
 class ServiceType(Base):

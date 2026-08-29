@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import (
-    BusinessHours,
     Dealership,
     ServiceBay,
     ServiceType,
@@ -11,7 +10,6 @@ from app.models import (
     TechnicianQualification,
 )
 from app.schemas import (
-    BusinessHoursOut,
     TechnicianOut,
     TechnicianQualificationOut,
 )
@@ -93,25 +91,3 @@ async def list_service_bays(
     if dealership_id is not None:
         stmt = stmt.where(ServiceBay.dealership_id == dealership_id)
     return list((await session.scalars(stmt)).all())
-
-
-async def list_business_hours(
-    session: AsyncSession,
-    dealership_id: int | None = None,
-) -> list[BusinessHoursOut]:
-    stmt = select(BusinessHours).order_by(
-        BusinessHours.dealership_id, BusinessHours.day_of_week
-    )
-    if dealership_id is not None:
-        stmt = stmt.where(BusinessHours.dealership_id == dealership_id)
-    rows = list((await session.scalars(stmt)).all())
-    return [
-        BusinessHoursOut(
-            id=row.id,
-            dealership_id=row.dealership_id,
-            day_of_week=row.day_of_week,
-            open_time=row.open_time,
-            close_time=row.close_time,
-        )
-        for row in rows
-    ]

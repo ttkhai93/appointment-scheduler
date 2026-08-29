@@ -7,7 +7,6 @@ from app.config import settings
 from app.exceptions import NotFoundError
 from app.models import (
     Appointment,
-    BusinessHours,
     Dealership,
     ServiceBay,
     ServiceType,
@@ -123,19 +122,10 @@ async def list_free_slots(
     dealership = await get_dealership_or_404(session, dealership_id)
     service_type = await get_service_type_or_404(session, service_type_id)
 
-    business_hours = await session.scalar(
-        select(BusinessHours).where(
-            BusinessHours.dealership_id == dealership_id,
-            BusinessHours.day_of_week == day.weekday(),
-        )
-    )
-    if business_hours is None:
-        return AvailabilityResponse(date=day, service_type_id=service_type_id, slots=[])
-
     candidate_slots = business_day_slots(
         day,
-        business_hours.open_time,
-        business_hours.close_time,
+        settings.business_open_time,
+        settings.business_close_time,
         dealership.timezone,
         service_type.duration_minutes,
         settings.slot_minutes,

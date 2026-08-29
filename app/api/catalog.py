@@ -2,15 +2,11 @@ from fastapi import APIRouter
 
 from app.dependencies import DbSession
 from app.schemas import (
-    BusinessHoursOut,
     DealershipOut,
     ServiceBayOut,
     ServiceTypeOut,
     TechnicianOut,
     TechnicianQualificationOut,
-)
-from app.services.catalog import (
-    list_business_hours as fetch_business_hours,
 )
 from app.services.catalog import (
     list_dealerships as fetch_dealerships,
@@ -66,11 +62,3 @@ async def list_service_bays(
     dealership_id: int | None = None,
 ):
     return await fetch_service_bays(session, dealership_id)
-
-
-@router.get("/business-hours", response_model=list[BusinessHoursOut])
-async def list_business_hours(
-    session: DbSession,
-    dealership_id: int | None = None,
-):
-    return await fetch_business_hours(session, dealership_id)

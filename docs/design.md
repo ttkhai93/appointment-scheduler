@@ -22,7 +22,7 @@ requirements were ambiguous, the agreed decisions are in §3.
 | A2 | Free-form vehicle fields (make/model/year/VIN); no catalog lookup. |
 | A3 | Fixed 60-minute booking grid; duration fixed per service type. |
 | A4 | Schema supports many dealerships; one is seeded. |
-| A5 | Business hours per dealership per weekday, in the dealership's IANA tz; stored in UTC. |
+| A5 | Identical business hours for every dealership, every day of the week (global config: 08:00–17:30 local, same hours all days); local times in the dealership's IANA tz. |
 | A6 | No hold step; booking atomically re-checks availability (201 or 409). |
 | A7 | Only create/retrieve; reschedule, cancel, and no-show are out of scope. |
 | A8 | Bay/technician are busy for the whole appointment; no setup buffers. |
@@ -43,7 +43,7 @@ requirements were ambiguous, the agreed decisions are in §3.
 
 ## 5. Data flow
 
-- **Availability lookup** (`GET /api/availability`): date → business-hours
+- **Availability lookup** (`GET /api/availability`): date → global business-hours
   grid (60-min slots, dealership tz → UTC) → for each slot, check "any qualified
   technician free?" and "any bay free?" → return free slots. Advisory only;
   booking does the real check.
@@ -58,8 +58,7 @@ requirements were ambiguous, the agreed decisions are in §3.
 
 | Model | Role |
 |-------|------|
-| `dealerships` | Venue + IANA timezone; owns bays, technicians, hours. |
-| `business_hours` | Per-weekday open/close times (dealership-local). |
+| `dealerships` | Venue + IANA timezone; owns bays and technicians. |
 | `service_types` | Fixed duration; drives `end_time` and slot grid. |
 | `technicians` | Human resource, dealership-scoped. |
 | `technician_qualifications` | M2M tech ↔ service type; defines "qualified". |
@@ -80,7 +79,7 @@ failing on the first race.
 | Method / Path | Purpose |
 |---------------|---------|
 | GET `/health` | Liveness + DB ping |
-| GET `/api/dealerships`, `/api/service-types`, `/api/technicians`, `/api/service-bays`, `/api/technician-qualifications`, `/api/business-hours` | Read-only reference data |
+| GET `/api/dealerships`, `/api/service-types`, `/api/technicians`, `/api/service-bays`, `/api/technician-qualifications` | Read-only reference data |
 | GET `/api/availability?dealership_id&service_type_id&date` | Free slots for a date |
 | GET `/api/availability/check?…&start_time` | Advisory check for one time |
 | POST `/api/appointments` | Create booking (customer + vehicle + appointment atomically) |

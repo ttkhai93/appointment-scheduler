@@ -92,14 +92,13 @@ async def test_booking_outside_business_hours_rejected(client, seed_ids):
     assert "outside business hours" in response.json()["detail"]
 
 
-async def test_booking_on_closed_day_rejected(client, seed_ids):
-    """A booking on a closed day (Sunday) is rejected."""
+async def test_booking_on_sunday_allowed(client, seed_ids):
+    """Sunday uses the same hours as every other day, so a daytime booking works."""
     response = await client.post(
         "/api/appointments",
         json=booking_payload(seed_ids, start="2026-08-30T08:00:00+07:00"),  # Sunday
     )
-    assert response.status_code == 422
-    assert "closed" in response.json()["detail"]
+    assert response.status_code == 201, response.text
 
 
 async def test_booking_invalid_email_rejected(client, seed_ids):

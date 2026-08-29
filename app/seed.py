@@ -5,13 +5,11 @@ Usage: uv run python -m app.seed
 
 import asyncio
 import logging
-from datetime import time
 
 from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models import (
-    BusinessHours,
     Dealership,
     ServiceBay,
     ServiceType,
@@ -26,16 +24,6 @@ DEALERSHIP = {
     "name": "Saigon Auto Service",
     "address": "12 Nguyen Hue, District 1, Ho Chi Minh City",
     "timezone": "Asia/Ho_Chi_Minh",
-}
-
-# Python weekday(): 0=Mon ... 6=Sun. Closed days are omitted.
-BUSINESS_HOURS = {
-    0: (time(8, 0), time(17, 30)),
-    1: (time(8, 0), time(17, 30)),
-    2: (time(8, 0), time(17, 30)),
-    3: (time(8, 0), time(17, 30)),
-    4: (time(8, 0), time(17, 30)),
-    5: (time(8, 0), time(12, 0)),
 }
 
 SERVICE_TYPES = [
@@ -108,16 +96,6 @@ async def seed() -> None:
         dealership = Dealership(**DEALERSHIP)
         session.add(dealership)
         await session.flush()
-
-        for day, (open_time, close_time) in BUSINESS_HOURS.items():
-            session.add(
-                BusinessHours(
-                    dealership_id=dealership.id,
-                    day_of_week=day,
-                    open_time=open_time,
-                    close_time=close_time,
-                )
-            )
 
         service_types: dict[str, ServiceType] = {}
         for spec in SERVICE_TYPES:

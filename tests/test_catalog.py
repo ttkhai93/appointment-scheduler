@@ -54,27 +54,11 @@ async def test_technician_qualifications(client, seed_ids):
         assert q["service_type_name"]
 
 
-async def test_business_hours(client, seed_ids):
-    """Business hours cover the seeded week: full weekdays plus a half-day Saturday."""
-    response = await client.get(
-        f"/api/business-hours?dealership_id={seed_ids['dealership_id']}"
-    )
-    assert response.status_code == 200
-    hours = response.json()
-    assert len(hours) == 6  # Mon–Fri full day, Saturday half day.
-    assert hours[0]["day_of_week"] == 0
-    assert hours[0]["open_time"] == "08:00:00"
-    assert hours[0]["close_time"] == "17:30:00"
-    assert hours[-1]["day_of_week"] == 5
-    assert hours[-1]["close_time"] == "12:00:00"
-
-
 async def test_catalog_unknown_dealership_returns_empty(client):
     """Catalog endpoints filter to empty lists for a nonexistent dealership."""
     for path in (
         "/api/technicians",
         "/api/service-bays",
-        "/api/business-hours",
         "/api/technician-qualifications",
     ):
         response = await client.get(path, params={"dealership_id": 9999})
@@ -87,7 +71,6 @@ async def test_catalog_invalid_dealership_id_rejected(client):
     for path in (
         "/api/technicians",
         "/api/service-bays",
-        "/api/business-hours",
         "/api/technician-qualifications",
     ):
         response = await client.get(path, params={"dealership_id": "abc"})

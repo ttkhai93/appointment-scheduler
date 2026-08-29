@@ -33,8 +33,7 @@ http://localhost:8000/docs, in this order:
 
 1. `GET /api/dealerships`, `GET /api/service-types`, and
    `GET /api/technicians?dealership_id=1` to look up reference data
-   (`/api/technician-qualifications` and `/api/business-hours` are also
-   available read-only).
+   (`/api/technician-qualifications` is also available read-only).
 2. `GET /api/availability?dealership_id=1&service_type_id=1&date=2026-09-01`
    to see free slots for a date (60-minute grid in the dealership's timezone),
    or `GET /api/availability/check` to verify one start time.
@@ -44,7 +43,11 @@ http://localhost:8000/docs, in this order:
 
 Expect `201` with the confirmed appointment (customer, vehicle, technician, and
 service bay), `409` when no qualified technician or free bay exists, or `422`
-when the request violates domain rules (off-grid, outside business hours, closed day).
+when the request violates domain rules (off-grid, outside business hours).
+
+Business hours are global configuration — every dealership is open the same
+hours every day (default 08:00–17:30 local, configurable via
+`BUSINESS_OPEN_TIME` / `BUSINESS_CLOSE_TIME`).
 
 ## Testing
 

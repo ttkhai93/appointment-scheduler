@@ -1,5 +1,3 @@
-from datetime import time
-
 import asyncpg
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -10,7 +8,6 @@ from app.application import create_app
 from app.database import Base
 from app.dependencies import get_db
 from app.models import (
-    BusinessHours,
     Dealership,
     ServiceBay,
     ServiceType,
@@ -33,25 +30,6 @@ async def seed_reference_data(session) -> None:
     )
     session.add(dealership)
     await session.flush()
-
-    session.add_all(
-        [
-            BusinessHours(
-                dealership_id=dealership.id,
-                day_of_week=day,
-                open_time=open_time,
-                close_time=close_time,
-            )
-            for day, (open_time, close_time) in {
-                0: (time(8, 0), time(17, 30)),
-                1: (time(8, 0), time(17, 30)),
-                2: (time(8, 0), time(17, 30)),
-                3: (time(8, 0), time(17, 30)),
-                4: (time(8, 0), time(17, 30)),
-                5: (time(8, 0), time(12, 0)),
-            }.items()
-        ]
-    )
 
     oil = ServiceType(
         name="Oil Change",

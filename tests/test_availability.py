@@ -40,8 +40,8 @@ async def test_availability_lists_free_slots(client, seed_ids):
     )
 
 
-async def test_availability_empty_on_closed_day(client, seed_ids):
-    """A day with no business hours (Sunday) returns an empty slot list."""
+async def test_availability_lists_sunday_slots(client, seed_ids):
+    """Sunday uses the same hours as every other day."""
     response = await client.get(
         "/api/availability",
         params={
@@ -51,11 +51,11 @@ async def test_availability_empty_on_closed_day(client, seed_ids):
         },
     )
     assert response.status_code == 200
-    assert response.json()["slots"] == []
+    assert len(response.json()["slots"]) == 9
 
 
-async def test_availability_lists_half_day_saturday_slots(client, seed_ids):
-    """A half-day Saturday yields four hourly slots ending at noon local."""
+async def test_availability_lists_full_saturday_slots(client, seed_ids):
+    """Saturday uses the full day of hours like every other day."""
     response = await client.get(
         "/api/availability",
         params={
@@ -66,12 +66,12 @@ async def test_availability_lists_half_day_saturday_slots(client, seed_ids):
     )
     assert response.status_code == 200
     slots = response.json()["slots"]
-    assert len(slots) == 4
+    assert len(slots) == 9
     assert datetime.fromisoformat(slots[0]["start_time"]) == datetime(
         2026, 8, 29, 1, 0, tzinfo=UTC
     )
     assert datetime.fromisoformat(slots[-1]["start_time"]) == datetime(
-        2026, 8, 29, 4, 0, tzinfo=UTC
+        2026, 8, 29, 9, 0, tzinfo=UTC
     )
 
 

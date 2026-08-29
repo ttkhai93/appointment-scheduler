@@ -10,7 +10,6 @@ from app.config import settings
 from app.exceptions import BookingConflictError, DomainValidationError, NotFoundError
 from app.models import (
     Appointment,
-    BusinessHours,
     Customer,
     ServiceBay,
     Technician,
@@ -45,29 +44,20 @@ async def upsert_customer(session: AsyncSession, data) -> Customer:
     return customer
 
 
-async def ensure_within_business_hours(
-    session: AsyncSession,
-    dealership,
+def ensure_within_business_hours(
     start_utc: datetime,
     end_utc: datetime,
+    tz_name: str,
 ) -> None:
-    local_start = start_utc.astimezone(ZoneInfo(dealership.timezone))
+    local_start = start_utc.astimezone(ZoneInfo(tz_name))
     local_end = end_utc.astimezone(local_start.tzinfo)
-    business_hours = await session.scalar(
-        select(BusinessHours).where(
-            BusinessHours.dealership_id == dealership.id,
-            BusinessHours.day_of_week == local_start.weekday(),
-        )
-    )
-    if business_hours is None:
-        raise DomainValidationError("dealership is closed on this day")
     if (
-        local_start.time() < business_hours.open_time
-        or local_end.time() > business_hours.close_time
+        local_start.time() < settings.business_open_time
+        or local_end.time() > settings.business_close_time
     ):
         raise DomainValidationError(
             "requested time is outside business hours "
-            f"({business_hours.open_time}–{business_hours.close_time} local)"
+            f"({settings.business_open_time}–{settings.business_close_time} local)"
         )
 
 
@@ -174,7 +164,7 @@ async def book_appointment(
         dealership = await get_dealership_or_404(session, payload.dealership_id)
         service_type = await get_service_type_or_404(session, payload.service_type_id)
         end_utc = start_utc + timedelta(minutes=service_type.duration_minutes)
-        await ensure_within_business_hours(session, dealership, start_utc, end_utc)
+        ensure_within_business_hours(start_utc, end_utc, dealership.timezone)
 
         customer = await upsert_customer(session, payload.customer)
         vehicle = Vehicle(
