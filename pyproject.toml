@@ -1,0 +1,32 @@
+[project]
+name = "appointment-scheduler"
+version = "0.1.0"
+description = "Resource-constrained appointment booking service for vehicle service dealerships"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "alembic>=1.19.0",
+    "asyncpg>=0.31.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.141.1",
+    "greenlet>=3.5.4",
+    "pydantic-settings>=2.14.2",
+    "sqlalchemy>=2.0.51",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.0",
+    "pre-commit>=4.2.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
