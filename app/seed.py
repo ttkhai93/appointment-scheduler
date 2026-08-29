@@ -99,18 +99,18 @@ SERVICE_BAYS = ["Bay 1", "Bay 2", "Bay 3"]
 
 
 async def seed() -> None:
-    async with SessionLocal() as db:
-        existing = await db.scalar(select(Dealership).limit(1))
+    async with SessionLocal() as session:
+        existing = await session.scalar(select(Dealership).limit(1))
         if existing is not None:
             logger.info("seed data already present; skipping")
             return
 
         dealership = Dealership(**DEALERSHIP)
-        db.add(dealership)
-        await db.flush()
+        session.add(dealership)
+        await session.flush()
 
         for day, (open_time, close_time) in BUSINESS_HOURS.items():
-            db.add(
+            session.add(
                 BusinessHours(
                     dealership_id=dealership.id,
                     day_of_week=day,
@@ -126,19 +126,19 @@ async def seed() -> None:
                 description=spec["description"],
                 duration_minutes=spec["duration_minutes"],
             )
-            db.add(service_type)
+            session.add(service_type)
             service_types[spec["name"]] = service_type
-        await db.flush()
+        await session.flush()
 
         for spec in TECHNICIANS:
             technician = Technician(
                 dealership_id=dealership.id,
                 name=spec["name"],
             )
-            db.add(technician)
-            await db.flush()
+            session.add(technician)
+            await session.flush()
             for service_name in spec["service_types"]:
-                db.add(
+                session.add(
                     TechnicianQualification(
                         technician_id=technician.id,
                         service_type_id=service_types[service_name].id,
@@ -146,9 +146,9 @@ async def seed() -> None:
                 )
 
         for name in SERVICE_BAYS:
-            db.add(ServiceBay(dealership_id=dealership.id, name=name))
+            session.add(ServiceBay(dealership_id=dealership.id, name=name))
 
-        await db.commit()
+        await session.commit()
         logger.info(
             "seeded %r (%s) with %d service types, %d technicians, %d bays",
             dealership.name,

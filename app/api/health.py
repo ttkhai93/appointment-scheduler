@@ -1,21 +1,14 @@
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.dependencies import get_db
+from app.dependencies import DbSession
+from app.services.health import check_database
 
 router = APIRouter(tags=["health"])
-DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
 @router.get("/health")
-async def health(db: DbSession):
-    try:
-        await db.execute(text("SELECT 1"))
-        database = "ok"
-    except SQLAlchemyError:
-        database = "unreachable"
-    return {"status": "ok", "database": database}
+async def health(session: DbSession):
+    return {
+        "status": "ok",
+        "database": "ok" if await check_database(session) else "unreachable",
+    }
