@@ -41,15 +41,11 @@ Interactive API docs at http://localhost:8000/docs
 Try the booking flow end to end in the interactive API docs (Swagger UI) at
 http://localhost:8000/docs, in this order:
 
-1. `GET /api/dealerships`, `GET /api/service-types`, and
-   `GET /api/technicians?dealership_id=1` to look up reference data
-   (`/api/technician-qualifications` is also available read-only).
-2. `GET /api/availability?dealership_id=1&service_type_id=1&date=2026-09-01`
-   to see free slots for a date (60-minute grid in the dealership's timezone),
-   or `GET /api/availability/check` to verify one start time.
-3. `POST /api/appointments` to book (customer and vehicle are
+1. `GET /api/dealerships` and `GET /api/service-types` to look up the
+   reference data you need to book (dealership and service type IDs).
+2. `POST /api/appointments` to book (customer and vehicle are
    upserted atomically with the appointment).
-4. `GET /api/appointments/{id}` to retrieve the appointment.
+3. `GET /api/appointments/{id}` to retrieve the appointment.
 
 Expect `201` with the confirmed appointment (customer, vehicle, technician, and
 service bay), `409` when no qualified technician or free bay exists, or `422`
@@ -75,7 +71,7 @@ DB-level exclusion constraints, and persistence across sessions.
 ```text
 alembic/                 # migrations (initial schema + exclusion constraints)
 app/
-  api/                   # HTTP routes (health, catalog, availability, appointments)
+  api/                   # HTTP routes (health, catalog, appointments)
   services/              # booking + availability business logic, time utilities
   config.py              # pydantic-settings
   database.py            # async engine / session

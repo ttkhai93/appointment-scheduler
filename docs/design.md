@@ -34,8 +34,8 @@ requirements were ambiguous, the agreed decisions are in §3.
 
 - **API routes (`app/api/`)** — validation (Pydantic), routing, error mapping
   (404/409/422); thin layer, no business logic.
-- **Services (`app/services/`)** — availability slot math, qualification/overlap
-  checks, and the atomic booking transaction with bounded retry.
+- **Services (`app/services/`)** — qualification/overlap checks and the atomic
+  booking transaction with bounded retry.
 - **Data access (`app/models.py`, `app/database.py`)** — ORM models and async
   engine/session management; the typed boundary between services and the store.
 - **PostgreSQL** — the database and source of truth; exclusion constraints make
@@ -48,10 +48,6 @@ runtime components; they are covered in §8.
 
 ## 5. Data flow
 
-- **Availability lookup** (`GET /api/availability`): date → global business-hours
-  grid (60-min slots, dealership tz → UTC) → for each slot, check "any qualified
-  technician free?" and "any bay free?" → return free slots. Advisory only;
-  booking does the real check.
 - **Booking** (`POST /api/appointments`): validate grid + business hours →
   upsert customer/vehicle → check qualifications, free bays, free technicians
   → insert appointment → commit. On an exclusion-constraint race, roll back and
@@ -84,9 +80,7 @@ failing on the first race.
 | Method / Path | Purpose |
 |---------------|---------|
 | GET `/health` | Liveness + DB ping |
-| GET `/api/dealerships`, `/api/service-types`, `/api/technicians`, `/api/service-bays`, `/api/technician-qualifications` | Read-only reference data |
-| GET `/api/availability?dealership_id&service_type_id&date` | Free slots for a date |
-| GET `/api/availability/check?…&start_time` | Advisory check for one time |
+| GET `/api/dealerships`, `/api/service-types` | Read-only reference data |
 | POST `/api/appointments` | Create booking (customer + vehicle + appointment atomically) |
 | GET `/api/appointments[/{id}]` | List / retrieve appointments |
 

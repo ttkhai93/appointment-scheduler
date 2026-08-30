@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -51,8 +51,6 @@ class TechnicianOut(BaseModel):
     id: int
     dealership_id: int
     name: str
-    # Populated by the catalog endpoint; empty for nested appointment payloads.
-    qualification_ids: list[int] = Field(default_factory=list)
 
 
 class ServiceBayOut(BaseModel):
@@ -81,13 +79,6 @@ class DealershipOut(BaseModel):
     timezone: str
 
 
-class TechnicianQualificationOut(BaseModel):
-    technician_id: int
-    technician_name: str
-    service_type_id: int
-    service_type_name: str
-
-
 class AppointmentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -103,19 +94,3 @@ class AppointmentOut(BaseModel):
     technician: TechnicianOut
     service_bay: ServiceBayOut
     service_type: ServiceTypeOut
-
-
-class AvailabilitySlot(BaseModel):
-    start_time: datetime
-    end_time: datetime
-
-
-class AvailabilityResponse(BaseModel):
-    date: date
-    service_type_id: int
-    slots: list[AvailabilitySlot]
-
-
-class AvailabilityCheckResponse(BaseModel):
-    available: bool
-    reason: str | None = None

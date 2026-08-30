@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api import appointments, availability, catalog, health
+from app.api import appointments, catalog, health
 from app.config import settings
 from app.exceptions import (
     BookingConflictError,
@@ -34,6 +34,5 @@ def create_app() -> FastAPI:
     install(app)
     app.include_router(health.router)
     app.include_router(catalog.router)
-    app.include_router(availability.router)
     app.include_router(appointments.router)
     return app
