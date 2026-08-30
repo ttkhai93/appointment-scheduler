@@ -26,20 +26,14 @@ from app.services.availability import (
 from app.services.timeutil import ensure_start_on_slot_boundary, ensure_utc
 
 
-async def upsert_customer(session: AsyncSession, data) -> Customer:
-    """Create or update a customer by (lowercased) email."""
-    email = data.email.lower()
-    customer = await session.scalar(select(Customer).where(Customer.email == email))
-    if customer is None:
-        customer = Customer(
-            full_name=data.full_name,
-            email=email,
-            phone=data.phone,
-        )
-        session.add(customer)
-    else:
-        customer.full_name = data.full_name
-        customer.phone = data.phone
+async def create_customer(session: AsyncSession, data) -> Customer:
+    """Create a fresh customer record for each booking (no dedup by email)."""
+    customer = Customer(
+        full_name=data.full_name,
+        email=data.email.lower(),
+        phone=data.phone,
+    )
+    session.add(customer)
     await session.flush()
     return customer
 
@@ -166,7 +160,7 @@ async def book_appointment(
         end_utc = start_utc + timedelta(minutes=service_type.duration_minutes)
         ensure_within_business_hours(start_utc, end_utc, dealership.timezone)
 
-        customer = await upsert_customer(session, payload.customer)
+        customer = await create_customer(session, payload.customer)
         vehicle = Vehicle(
             make=payload.vehicle.make,
             model=payload.vehicle.model,

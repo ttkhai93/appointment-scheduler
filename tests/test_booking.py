@@ -117,8 +117,8 @@ async def test_booking_unknown_dealership(client, seed_ids):
     assert response.status_code == 404
 
 
-async def test_booking_reuses_customer_by_email(client, seed_ids, db_session):
-    """Repeat bookings with the same email reuse the existing customer instead of creating a new one."""
+async def test_booking_creates_new_customer_per_booking(client, seed_ids, db_session):
+    """Each booking creates a fresh customer record, even for the same email."""
     first = await client.post(
         "/api/appointments",
         json=booking_payload(seed_ids, start="2026-09-01T08:00:00+07:00"),
@@ -131,7 +131,7 @@ async def test_booking_reuses_customer_by_email(client, seed_ids, db_session):
     assert second.status_code == 201
 
     count = await db_session.scalar(select(func.count()).select_from(Customer))
-    assert count == 1
+    assert count == 2
 
 
 async def test_booking_unknown_service_type(client, seed_ids):

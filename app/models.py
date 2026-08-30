@@ -88,7 +88,7 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True)
+    email: Mapped[str] = mapped_column(String(255))
     phone: Mapped[str] = mapped_column(String(32))
     full_name: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(
