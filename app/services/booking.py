@@ -74,6 +74,7 @@ async def list_free_bays(
         select(ServiceBay)
         .where(ServiceBay.dealership_id == dealership_id, ~overlapping)
         .order_by(ServiceBay.id)
+        .with_for_update()
     )
     return list((await session.scalars(stmt)).all())
 
@@ -89,6 +90,7 @@ async def list_free_technicians(
         select(Technician)
         .where(Technician.id.in_(technician_ids), ~overlapping)
         .order_by(Technician.id)
+        .with_for_update()
     )
     return list((await session.scalars(stmt)).all())
 
@@ -129,6 +131,25 @@ async def get_appointment(session: AsyncSession, appointment_id: int) -> Appoint
 
 
 MAX_BOOKING_ATTEMPTS = 5
+
+
+def _is_deadlock(exc: BaseException) -> bool:
+    """Return True if the exception is a Postgres deadlock (SQLSTATE 40P01).
+
+    The asyncpg dialect stamps ``sqlstate`` on the translated DBAPI error, but
+    SQLAlchemy's outer wrapper only keeps it on the inner cause, so walk the
+    ``orig``/``__cause__`` chain looking for the 40P01 marker.
+    """
+    seen: set[int] = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if (
+            getattr(exc, "sqlstate", None) == "40P01"
+            or getattr(exc, "pgcode", None) == "40P01"
+        ):
+            return True
+        exc = getattr(exc, "orig", None) or exc.__cause__
+    return False
 
 
 async def book_appointment(
@@ -203,6 +224,11 @@ async def book_appointment(
         try:
             await session.commit()
         except IntegrityError:
+            await session.rollback()
+            continue
+        except Exception as exc:
+            if not _is_deadlock(exc):
+                raise
             await session.rollback()
             continue
 

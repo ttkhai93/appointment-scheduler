@@ -149,12 +149,16 @@ async def seed_ids(db_setup):
         full = await session.scalar(
             select(ServiceType).where(ServiceType.name == "Full Service")
         )
+        tire = await session.scalar(
+            select(ServiceType).where(ServiceType.name == "Tire Rotation")
+        )
         diagnostics = await session.scalar(
             select(ServiceType).where(ServiceType.name == "Engine Diagnostics")
         )
         return {
             "dealership_id": dealership.id,
             "oil_change_id": oil.id,
+            "tire_rotation_id": tire.id,
             "full_service_id": full.id,
             "diagnostics_id": diagnostics.id,
         }

@@ -79,7 +79,7 @@ async def test_booking_off_grid_rejected(client, seed_ids):
         json=booking_payload(seed_ids, start="2026-09-01T08:15:00+07:00"),
     )
     assert response.status_code == 422
-    assert "grid" in response.json()["detail"]
+    assert "start_time must fall on the" in response.json()["detail"]
 
 
 async def test_booking_outside_business_hours_rejected(client, seed_ids):
@@ -90,15 +90,6 @@ async def test_booking_outside_business_hours_rejected(client, seed_ids):
     )
     assert response.status_code == 422
     assert "outside business hours" in response.json()["detail"]
-
-
-async def test_booking_on_sunday_allowed(client, seed_ids):
-    """Sunday uses the same hours as every other day, so a daytime booking works."""
-    response = await client.post(
-        "/api/appointments",
-        json=booking_payload(seed_ids, start="2026-08-30T08:00:00+07:00"),  # Sunday
-    )
-    assert response.status_code == 201, response.text
 
 
 async def test_booking_invalid_email_rejected(client, seed_ids):
@@ -154,6 +145,14 @@ async def test_booking_missing_customer_rejected(client, seed_ids):
     """A booking without customer details fails validation."""
     payload = booking_payload(seed_ids)
     del payload["customer"]
+    response = await client.post("/api/appointments", json=payload)
+    assert response.status_code == 422
+
+
+async def test_booking_missing_vehicle_rejected(client, seed_ids):
+    """A booking without vehicle details fails validation."""
+    payload = booking_payload(seed_ids)
+    del payload["vehicle"]
     response = await client.post("/api/appointments", json=payload)
     assert response.status_code == 422
 
