@@ -11,8 +11,8 @@ def ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(UTC)
 
 
-def validate_grid(dt: datetime, slot_minutes: int) -> None:
-    """Enforce that a start time falls on the booking grid (assumption A3)."""
+def ensure_start_on_slot_boundary(dt: datetime, slot_minutes: int) -> None:
+    """Ensure a start time lands exactly on a slot boundary (assumption A3)."""
     if dt.minute % slot_minutes != 0 or dt.second != 0 or dt.microsecond != 0:
         raise DomainValidationError(
             f"start_time must fall on the {slot_minutes}-minute grid"

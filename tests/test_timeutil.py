@@ -5,8 +5,8 @@ import pytest
 from app.exceptions import DomainValidationError
 from app.services.timeutil import (
     business_day_slots,
+    ensure_start_on_slot_boundary,
     ensure_utc,
-    validate_grid,
 )
 
 
@@ -25,17 +25,19 @@ def test_ensure_utc_naive_assumed_utc():
 @pytest.mark.parametrize(
     "minute,second,microsecond", [(30, 0, 0), (0, 1, 0), (0, 0, 1)]
 )
-def test_validate_grid_rejects_off_grid(minute, second, microsecond):
+def test_ensure_start_on_slot_boundary_rejects_off_boundary(
+    minute, second, microsecond
+):
     """Off-grid datetimes (misaligned minute, second, or microsecond) are rejected."""
     dt = datetime(2026, 9, 1, 9, minute, second, microsecond, tzinfo=UTC)
     with pytest.raises(DomainValidationError):
-        validate_grid(dt, 60)
+        ensure_start_on_slot_boundary(dt, 60)
 
 
-def test_validate_grid_accepts_on_grid():
+def test_ensure_start_on_slot_boundary_accepts_on_boundary():
     """A datetime aligned to the slot grid passes validation."""
     dt = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
-    validate_grid(dt, 60)
+    ensure_start_on_slot_boundary(dt, 60)
 
 
 def test_business_day_slots_single_slot_duration():
