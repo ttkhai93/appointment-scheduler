@@ -82,9 +82,9 @@ Repeat the POST with a modified `start_time`:
 - Set `"dealership_id": 9999` in the body → `404`.
 - Set `"start_time": "2026-09-01T10:00:00+07:00"` and **Execute the same POST
   three times** to fill all 3 bays, then a fourth time — the fourth returns
-  `409` with code `no_free_bay` (bays are checked before technicians, and all
-  three are taken). The same customer email is fine: repeat bookings by one
-  customer are not restricted.
+  `409` with code `no_free_technician` (technicians are checked before bays;
+  all three qualified technicians and all three bays are taken). The same
+  customer email is fine: repeat bookings by one customer are not restricted.
 
 ## Project layout
 
