@@ -26,18 +26,6 @@ from app.services.availability import (
 from app.services.timeutil import ensure_start_on_slot_boundary, ensure_utc
 
 
-async def create_customer(session: AsyncSession, data) -> Customer:
-    """Create a fresh customer record for each booking (no dedup by email)."""
-    customer = Customer(
-        full_name=data.full_name,
-        email=data.email.lower(),
-        phone=data.phone,
-    )
-    session.add(customer)
-    await session.flush()
-    return customer
-
-
 def ensure_within_business_hours(
     start_utc: datetime,
     end_utc: datetime,
@@ -160,7 +148,13 @@ async def book_appointment(
         end_utc = start_utc + timedelta(minutes=service_type.duration_minutes)
         ensure_within_business_hours(start_utc, end_utc, dealership.timezone)
 
-        customer = await create_customer(session, payload.customer)
+        customer = Customer(
+            full_name=payload.customer.full_name,
+            email=payload.customer.email.lower(),
+            phone=payload.customer.phone,
+        )
+        session.add(customer)
+
         vehicle = Vehicle(
             make=payload.vehicle.make,
             model=payload.vehicle.model,
