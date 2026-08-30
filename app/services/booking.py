@@ -174,11 +174,6 @@ async def book_appointment(
                 "no technician is qualified for this service type",
             )
 
-        bays = await list_free_bays(session, dealership.id, start_utc, end_utc)
-        if not bays:
-            await session.rollback()
-            raise BookingConflictError("no_free_bay", "no service bay is available")
-
         technicians = await list_free_technicians(
             session, technician_ids, start_utc, end_utc
         )
@@ -187,6 +182,11 @@ async def book_appointment(
             raise BookingConflictError(
                 "no_free_technician", "no qualified technician is available"
             )
+
+        bays = await list_free_bays(session, dealership.id, start_utc, end_utc)
+        if not bays:
+            await session.rollback()
+            raise BookingConflictError("no_free_bay", "no service bay is available")
 
         appointment = Appointment(
             dealership_id=dealership.id,

@@ -1,24 +1,30 @@
 # Appointment Scheduler — System Design
 
-## 1. Overview
+## 1. Core Requirements
 
-Resource-constrained booking service for vehicle dealerships. A customer
-requests an appointment (vehicle + service type + dealership + start time); the
-service confirms it only if a **qualified technician** and a **service bay**
-are both free for the whole duration, then saves the appointment. Where the
-requirements were ambiguous, the agreed decisions are in §3.
+1. **Resource-constrained booking** — allow a user to request a service
+   appointment for a specific vehicle, service type, and dealership at a
+   desired time.
+2. **Real-time availability check** — before confirming, check that both a
+   service bay and a qualified technician are available for the entire service
+   duration.
+3. **Confirmed appointment record** — upon success, create a persistent
+   appointment record associating the customer, vehicle, technician, and
+   service bay.
 
-## 2. Requirements
+**Coverage**
 
-1. **Resource-constrained booking** — book a vehicle + service type + dealership at a chosen time.
-2. **Real-time availability** — a qualified technician and a service bay must be free for the whole duration.
-3. **Confirmed record** — save an appointment linking customer, vehicle, technician, and bay.
+| Requirement | Implementation |
+|---|---|
+| 1 | `POST /api/appointments` + `app/services/booking.py` |
+| 2 | Overlap checks in `app/services/availability.py` |
+| 3 | Persistent `appointments` row + `GET /api/appointments/{id}` |
 
-## 3. Assumptions (agreed ambiguities)
+## 2. Assumptions (agreed ambiguities)
 
 | # | Decision |
 |---|----------|
-| A1 | No auth; customer created/upserted by email from the booking payload. |
+| A1 | No auth; a new customer record is created per booking (same as vehicles; no dedup by email). |
 | A2 | Free-form vehicle fields (make/model/year/VIN); no catalog lookup. |
 | A3 | Fixed 60-minute booking grid; duration fixed per service type. |
 | A4 | Schema supports many dealerships; one is seeded. |
@@ -28,10 +34,31 @@ requirements were ambiguous, the agreed decisions are in §3.
 | A8 | Bay/technician are busy for the whole appointment; no setup buffers. |
 | A9 | Bays/technicians belong to one dealership; no sharing across dealerships. |
 
-## 4. Architecture
+## 3. Architecture
+
+```mermaid
+flowchart LR
+    Client -->|HTTP| APP
+    subgraph APP[FastAPI app]
+        ROUTES[app/api — routes, validation, error mapping]
+        SERVICES[app/services — booking, availability, catalog, health]
+        ORM[SQLAlchemy models — data access]
+        LOG[Request logs — request_id, status, duration]
+        METRICS[/metrics — Prometheus format/]
+        ROUTES --> SERVICES
+        SERVICES --> ORM
+        SERVICES --> LOG
+        SERVICES --> METRICS
+    end
+    ORM -->|SQL| PG[(PostgreSQL 16)]
+    METRICS -->|scrape| PROM[Prometheus]
+    PROM --> GRAF[Grafana]
+```
 
 **Component roles**
 
+- **Client** — external HTTP consumer (browser, Swagger UI, or API client)
+  driving the booking flow.
 - **API routes (`app/api/`)** — validation (Pydantic), routing, error mapping
   (404/409/422); thin layer, no business logic.
 - **Services (`app/services/`)** — qualification/overlap checks and the atomic
@@ -40,22 +67,44 @@ requirements were ambiguous, the agreed decisions are in §3.
   engine/session management; the typed boundary between services and the store.
 - **PostgreSQL** — the database and source of truth; exclusion constraints make
   overlapping bookings impossible at the DB level.
-- **Configuration (`app/config.py`)** — settings (DB URL, hours, timezone)
-  consumed by the rest of the app.
+- **Prometheus** — scrapes `GET /metrics` and stores request-rate, latency, and
+  booking-conflict metrics.
+- **Grafana** — provisioned dashboard (request rate, p95 latency, booking
+  conflicts) reading from Prometheus.
 
-Schema migrations (Alembic) and the idempotent dev seed script are tooling, not
-runtime components; they are covered in §8.
+## 4. Data flow
 
-## 5. Data flow
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as Server
+    participant DB as PostgreSQL
 
-- **Booking** (`POST /api/appointments`): validate grid + business hours →
-  upsert customer/vehicle → check qualifications, free bays, free technicians
-  → insert appointment → commit. On an exclusion-constraint race, roll back and
-  retry with a fresh snapshot (max 5 attempts) → 201 or 409.
-- **Errors**: 404 unknown entity; 422 domain-rule violation (off-grid,
-  out-of-hours); 409 no capacity / concurrent loser.
+    Client->>API: POST /api/appointments
+    API->>API: validate start time (valid slot boundary, business hours)
+    alt invalid start time
+        API-->>Client: 422 (off-grid or outside business hours)
+    else valid
+        API->>DB: load dealership + service type
+        alt not found
+            API-->>Client: 404
+        else found
+            API->>DB: create customer + vehicle
+            API->>DB: find qualified technicians and free bays
+            alt free pair found
+                API->>DB: INSERT appointment
+                API-->>Client: 201 confirmed
+            else no free pair
+                API-->>Client: 409 (no_qualified_technician / no_free_technician / no_free_bay)
+            else constraint race
+                DB-->>API: integrity error
+                API->>DB: rollback + retry, fresh snapshot (max 5)
+            end
+        end
+    end
+```
 
-## 6. Data model
+## 5. Data model
 
 | Model | Role |
 |-------|------|
@@ -64,80 +113,82 @@ runtime components; they are covered in §8.
 | `technicians` | Human resource, dealership-scoped. |
 | `technician_qualifications` | M2M tech ↔ service type; defines "qualified". |
 | `service_bays` | Physical bay, dealership-scoped. |
-| `customers` | Contact info; unique email (idempotent upsert). |
+| `customers` | Contact info recorded per booking (no dedup). |
 | `vehicles` | Free-form car details recorded per appointment. |
 | `appointments` | Booking record: customer, vehicle, tech, bay, service type, UTC start/end, status. |
 
-**No-double-booking guarantee**: `EXCLUDE USING gist` on
-`(service_bay_id, tstzrange(start_time, end_time))` and
-`(technician_id, tstzrange(start_time, end_time))`. `tstzrange` uses `[)`
-bounds, so back-to-back appointments are allowed. The service layer adds a
+**No-double-booking guarantee**: `EXCLUDE USING gist` on:  
+- `(service_bay_id, tstzrange(start_time, end_time))`.
+- `(technician_id, tstzrange(start_time, end_time))`.
+
+`tstzrange` uses `[)` bounds, so back-to-back appointments are allowed. The service layer adds a
 bounded retry so concurrent requests spread across free pairs instead of
 failing on the first race.
 
-## 7. API summary
+## 6. API summary
 
 | Method / Path | Purpose |
 |---------------|---------|
 | GET `/health` | Liveness + DB ping |
 | GET `/api/dealerships`, `/api/service-types` | Read-only reference data |
 | POST `/api/appointments` | Create booking (customer + vehicle + appointment atomically) |
-| GET `/api/appointments[/{id}]` | List / retrieve appointments |
-
-Example booking request:
-
-```json
-{
-  "dealership_id": 1,
-  "service_type_id": 1,
-  "start_time": "2026-09-01T09:00:00+07:00",
-  "customer": { "full_name": "Minh Nguyen", "email": "minh@example.com", "phone": "+84901234567" },
-  "vehicle": { "make": "Toyota", "model": "Corolla", "year": 2020, "vin": "JTDBR32E100000001" }
-}
-```
+| GET `/api/appointments` | List appointments (filter by dealership / start_from / start_to) |
+| GET `/api/appointments/{id}` | Retrieve one appointment |
 
 Timestamps normalize to UTC for storage; responses return UTC.
 
-## 8. Technologies
+## 7. Technologies
 
-| Choice | Why |
-|--------|-----|
-| Python + FastAPI | Requested; async, Pydantic validation, auto OpenAPI. |
-| PostgreSQL 16 + asyncpg, SQLAlchemy 2 (async) | Requested; `timestamptz` + `btree_gist` exclusion constraints. |
-| Alembic | Versioned, reviewable migrations. |
-| uv | Requested; lockfile + managed Python runtime. |
-| pytest + pytest-asyncio | Requested; real-Postgres integration tests. |
-| Docker Compose | Postgres for local dev and tests. |
-| ruff + pre-commit | Requested; lint/format gate on commit. |
+**Python 3.14 + FastAPI.** I chose FastAPI for three reasons: it's async
+without ceremony, Pydantic gives me validated request/response models at the
+API boundary, and it has built-in Swagger.
 
-Rejected: Redis slot holds (the DB alone guarantees the invariant), app-level
-`SELECT … FOR UPDATE` (weaker than exclusion constraints), SQLite (no exclusion
-constraints).
+**PostgreSQL 16.** I chose PostgreSQL because it's the most popular
+open-source relational database. It also fits this problem well:
+booking is fundamentally an ACID problem, so the availability check and the
+insert have to be atomic - otherwise two concurrent requests could both
+confirm the same resource - and PostgreSQL's native exclusion constraints are
+what the data model uses to prevent overlapping bookings.
 
-## 9. Observability
+**Prometheus + Grafana.** I chose Prometheus for metrics collection and
+Grafana for dashboards.
+
+The stack is open source and self-hostable, with no vendor lock-in.
+
+## 8. Observability
 
 **Implemented**:
 
-- `/health` — confirms the app is up and the database is reachable.
-- **Request logs** — one line per request (request ID, endpoint, status,
+- `/health`: confirms the app is up and the database is reachable.
+- Request logs: one line per request (request ID, endpoint, status,
   duration); no customer data.
-- `/metrics` — Prometheus-format: request count, latency, and booking-conflict
+- `/metrics`: Prometheus-format: request count, latency, and booking-conflict
   count.
-- **Grafana** — provisioned dashboard (request rate, p95 latency, booking
-  conflicts), fed by Prometheus scraping `/metrics`; started via
-  `make monitoring` (docker compose).
+- Grafana: provisioned dashboard (request rate, p95 latency, booking
+  conflicts), fed by Prometheus scraping `/metrics`.
 
-## 10. GenAI in the design phase
+## 9. Out of scope and future work
 
-The assistant helped decompose requirements into acceptance criteria, compare
-concurrency strategies (exclusion constraints chosen and verified against
-Postgres docs), draft the architecture diagram and seed/test designs, and shape
-the observability strategy in §9. The test suite and manual cURL checks
-verified all suggested code.
+Deliberately out of scope for this MVP; several are natural next steps.
+Ambiguity-driven scope decisions (auth, vehicle catalog, reschedule/cancel)
+are already captured in §2 and not repeated here.
 
-## 11. Out of scope
-
-Auth, rescheduling/cancellation/no-shows, VIN/catalog integration, multi-bay
-services and shift planning, notifications, deployment of the observability
-stack (§9 defines the strategy; tooling lands post-MVP), and horizontal
-Postgres scaling.
+- **Rate limiting** — assumed internal service; add before public exposure.
+- **Multi-bay services and shift planning** — single-bay, fixed-duration
+  services.
+- **Notifications** — no email/SMS.
+- **Production-grade deployment** — TLS, auth for Grafana, managed Postgres,
+  app containerization (Dockerfile), and a CI pipeline.
+- **Horizontal Postgres scaling** — a single instance is fine at this scale.
+- **Pagination** for `GET /api/appointments` (keyset/cursor on `start_time`)
+  before production traffic.
+- **Resource load-balancing** — the first free bay/technician is chosen
+  deterministically; a least-loaded or fairness-aware selector is a natural
+  next step.
+- **Migrations under test** — the test harness builds the schema with
+  `create_all`; exercise the Alembic upgrade chain in CI.
+- **Retry backoff** — the booking retry loop is capped at 5 attempts without
+  backoff; add jittered backoff for hot-slot contention.
+- **OpenTelemetry tracing and alerting** — implement the §8 plan.
+- **Load testing** — benchmarks to quantify throughput and the retry success
+  rate under contention.
