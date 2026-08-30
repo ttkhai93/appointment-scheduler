@@ -22,9 +22,19 @@ make up          # docker compose up -d --wait postgres
 make db-upgrade  # apply Alembic migrations
 make seed        # idempotent seed data (1 dealership, 5 services, 4 techs, 3 bays)
 make dev         # uvicorn on http://localhost:8000
+make monitoring  # Prometheus + Grafana with a provisioned dashboard
 ```
 
 Interactive API docs at http://localhost:8000/docs
+
+## Observability
+
+- `GET /metrics` — Prometheus metrics (request count, latency, booking conflicts).
+- `make monitoring` — starts Prometheus (http://localhost:9090) and Grafana
+  (http://localhost:3000, anonymous viewer). Grafana auto-loads the
+  "Appointment Scheduler" dashboard: request rate, p95 latency, and booking
+  conflicts. Prometheus scrapes the app at `host.docker.internal:8000`, so run
+  `make dev` first.
 
 ## Booking flow (interactive)
 
@@ -75,6 +85,7 @@ app/
   application.py         # FastAPI factory
 tests/                   # unit + integration tests (real Postgres)
 docs/design.md           # system design document
+infrastructures/telemetry/  # Prometheus + Grafana configs (provisioned dashboard)
 main.py                  # uvicorn entrypoint
 ```
 
@@ -87,6 +98,7 @@ dev          run the API with reload
 test         run pytest (starts Postgres)
 db-upgrade   apply Alembic migrations
 seed         load seed data
+monitoring   start Prometheus + Grafana (provisioned dashboard)
 lint         ruff check --fix + format
 fmt          ruff format
 ```

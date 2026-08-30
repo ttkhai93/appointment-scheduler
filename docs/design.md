@@ -120,23 +120,30 @@ Rejected: Redis slot holds (the DB alone guarantees the invariant), app-level
 `SELECT … FOR UPDATE` (weaker than exclusion constraints), SQLite (no exclusion
 constraints).
 
-## 9. Observability (deferred)
+## 9. Observability
 
-Intentionally removed for review simplicity. Reintroduction plan: structured
-logs with request/trace IDs via middleware; Prometheus `/metrics` (request
-rate/latency, booking confirmed/conflict counters); OpenTelemetry → Jaeger
-traces; Grafana dashboards; add those services to `docker-compose.yml`.
+**Implemented**:
+
+- `/health` — confirms the app is up and the database is reachable.
+- **Request logs** — one line per request (request ID, endpoint, status,
+  duration); no customer data.
+- `/metrics` — Prometheus-format: request count, latency, and booking-conflict
+  count.
+- **Grafana** — provisioned dashboard (request rate, p95 latency, booking
+  conflicts), fed by Prometheus scraping `/metrics`; started via
+  `make monitoring` (docker compose).
 
 ## 10. GenAI in the design phase
 
 The assistant helped decompose requirements into acceptance criteria, compare
 concurrency strategies (exclusion constraints chosen and verified against
-Postgres docs), draft the architecture diagram and seed/test designs, and scope
-observability (designed, then deferred after review). The test suite and manual
-cURL checks verified all suggested code.
+Postgres docs), draft the architecture diagram and seed/test designs, and shape
+the observability strategy in §9. The test suite and manual cURL checks
+verified all suggested code.
 
 ## 11. Out of scope
 
 Auth, rescheduling/cancellation/no-shows, VIN/catalog integration, multi-bay
-services and shift planning, notifications, observability (deferred, §9), and
-horizontal Postgres scaling.
+services and shift planning, notifications, deployment of the observability
+stack (§9 defines the strategy; tooling lands post-MVP), and horizontal
+Postgres scaling.

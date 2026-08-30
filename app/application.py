@@ -8,13 +8,16 @@ from app.exceptions import (
     DomainValidationError,
     NotFoundError,
 )
+from app.observability import BOOKING_CONFLICTS, configure_logging, install
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(title=settings.app_name)
 
     @app.exception_handler(BookingConflictError)
     async def handle_conflict(_: Request, exc: BookingConflictError):
+        BOOKING_CONFLICTS.inc()
         return JSONResponse(
             status_code=409,
             content={"detail": exc.message, "code": exc.code},
@@ -28,6 +31,7 @@ def create_app() -> FastAPI:
     async def handle_not_found(_: Request, exc: NotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
+    install(app)
     app.include_router(health.router)
     app.include_router(catalog.router)
     app.include_router(availability.router)
