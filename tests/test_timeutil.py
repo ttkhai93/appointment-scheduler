@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -6,6 +7,7 @@ from app.exceptions import DomainValidationError
 from app.services.timeutil import (
     business_day_slots,
     ensure_start_on_slot_boundary,
+    ensure_start_on_slot_boundary_local,
     ensure_utc,
 )
 
@@ -38,6 +40,27 @@ def test_ensure_start_on_slot_boundary_accepts_on_boundary():
     """A datetime aligned to the slot grid passes validation."""
     dt = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
     ensure_start_on_slot_boundary(dt, 60)
+
+
+@pytest.mark.parametrize(
+    "tz_name",
+    ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Asia/Kathmandu", "Australia/Adelaide"],
+)
+def test_ensure_start_on_slot_boundary_local_accepts_local_hour(tz_name):
+    """08:00 dealership-local time is on-grid regardless of UTC offset."""
+    start_utc = datetime(2026, 9, 1, 8, 0, tzinfo=ZoneInfo(tz_name)).astimezone(UTC)
+    ensure_start_on_slot_boundary_local(start_utc, tz_name, 60)
+
+
+@pytest.mark.parametrize(
+    "tz_name",
+    ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Asia/Kathmandu", "Australia/Adelaide"],
+)
+def test_ensure_start_on_slot_boundary_local_rejects_off_grid(tz_name):
+    """08:15 dealership-local time is rejected even when UTC appears on-grid."""
+    start_utc = datetime(2026, 9, 1, 8, 15, tzinfo=ZoneInfo(tz_name)).astimezone(UTC)
+    with pytest.raises(DomainValidationError):
+        ensure_start_on_slot_boundary_local(start_utc, tz_name, 60)
 
 
 def test_business_day_slots_single_slot_duration():

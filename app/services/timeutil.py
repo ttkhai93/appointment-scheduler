@@ -19,6 +19,16 @@ def ensure_start_on_slot_boundary(dt: datetime, slot_minutes: int) -> None:
         )
 
 
+def ensure_start_on_slot_boundary_local(
+    start_utc: datetime,
+    tz_name: str,
+    slot_minutes: int,
+) -> None:
+    """Ensure a UTC start time lands on the slot grid in the dealership's timezone."""
+    local_start = start_utc.astimezone(get_zoneinfo(tz_name))
+    ensure_start_on_slot_boundary(local_start, slot_minutes)
+
+
 def get_zoneinfo(tz_name: str) -> ZoneInfo:
     try:
         return ZoneInfo(tz_name)

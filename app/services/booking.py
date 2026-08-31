@@ -23,7 +23,7 @@ from app.services.availability import (
     get_service_type_or_404,
     qualified_technician_overlap_subquery,
 )
-from app.services.timeutil import ensure_start_on_slot_boundary, ensure_utc
+from app.services.timeutil import ensure_start_on_slot_boundary_local, ensure_utc
 
 
 def ensure_within_business_hours(
@@ -157,7 +157,6 @@ async def book_appointment(
     payload: AppointmentCreate,
 ) -> Appointment:
     start_utc = ensure_utc(payload.start_time)
-    ensure_start_on_slot_boundary(start_utc, settings.slot_minutes)
 
     # A concurrent request can take a pair between our availability snapshot
     # and the insert (exclusion constraints reject it). Retry the whole
@@ -167,6 +166,9 @@ async def book_appointment(
         dealership = await get_dealership_or_404(session, payload.dealership_id)
         service_type = await get_service_type_or_404(session, payload.service_type_id)
         end_utc = start_utc + timedelta(minutes=service_type.duration_minutes)
+        ensure_start_on_slot_boundary_local(
+            start_utc, dealership.timezone, settings.slot_minutes
+        )
         ensure_within_business_hours(start_utc, end_utc, dealership.timezone)
 
         customer = Customer(
