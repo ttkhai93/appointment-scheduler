@@ -1,11 +1,15 @@
+import asyncio
+from pathlib import Path
+
 import asyncpg
 import pytest_asyncio
+from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from alembic import command
 from app.application import create_app
-from app.database import Base
 from app.dependencies import get_db
 from app.models import (
     Dealership,
@@ -20,6 +24,33 @@ ADMIN_DSN = "postgresql://postgres:postgres@localhost:5433/postgres"
 TEST_DATABASE_URL = (
     "postgresql+asyncpg://postgres:postgres@localhost:5433/appointment_scheduler_test"
 )
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ALEMBIC_INI = REPO_ROOT / "alembic.ini"
+
+
+def _alembic_config() -> Config:
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+    config.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    return config
+
+
+def run_migrations() -> None:
+    """Apply the Alembic upgrade chain to the test database."""
+    command.upgrade(_alembic_config(), "head")
+
+
+def downgrade_migrations() -> None:
+    """Remove the migrated schema after the test session."""
+    command.downgrade(_alembic_config(), "base")
+
+
+async def apply_migrations() -> None:
+    await asyncio.to_thread(run_migrations)
+
+
+async def remove_migrated_schema() -> None:
+    await asyncio.to_thread(downgrade_migrations)
 
 
 async def seed_reference_data(session) -> None:
@@ -120,9 +151,7 @@ async def db_setup():
     await admin.close()
 
     engine = create_async_engine(TEST_DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
-        await conn.run_sync(Base.metadata.create_all)
+    await apply_migrations()
 
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as session:
@@ -130,8 +159,7 @@ async def db_setup():
 
     yield engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    await remove_migrated_schema()
     await engine.dispose()
 
 
