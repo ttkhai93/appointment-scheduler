@@ -5,7 +5,7 @@ customer and start time information. The service confirms it only when both a
 service bay and a qualified technician are free for the whole duration, then
 saves the appointment.
 
-All system details — requirements, architecture, data flow, API contract, observability, and future work — are in [docs/design.md](docs/design.md).
+All system details — requirements, architecture, data flow, API contract, and observability — are in [docs/design.md](docs/design.md).
 
 ## Quickstart
 

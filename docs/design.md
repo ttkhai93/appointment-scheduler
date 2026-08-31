@@ -24,15 +24,13 @@
 
 | # | Decision |
 |---|----------|
-| A1 | No auth; a new customer record is created per booking (same as vehicles; no dedup by email). |
-| A2 | Free-form vehicle fields (make/model/year/VIN); no catalog lookup. |
+| A1 | No auth; a new customer record is created per booking, no existing customer to lookup. |
+| A2 | Free-form vehicle fields (make/model/year/VIN); no existing vehicle catalog to lookup. |
 | A3 | Fixed 60-minute booking grid; duration fixed per service type. |
-| A4 | Schema supports many dealerships; one is seeded. |
-| A5 | Identical business hours for every dealership, every day of the week (global config: 08:00–17:30 local, same hours all days); local times in the dealership's IANA tz. |
-| A6 | No hold step; booking atomically re-checks availability (201 or 409). |
-| A7 | Only create/retrieve; reschedule, cancel, and no-show are out of scope. |
-| A8 | Bay/technician are busy for the whole appointment; no setup buffers. |
-| A9 | Bays/technicians belong to one dealership; no sharing across dealerships. |
+| A4 | Identical business hours for every dealership |
+| A5 | Booking atomically re-checks availability. |
+| A6 | User can create and view an appoinment; no reschedule or cancel. |
+| A7 | Bays/technicians belong to one dealership; no sharing across dealerships. |
 
 ## 3. Architecture
 
@@ -166,29 +164,3 @@ The stack is open source and self-hostable, with no vendor lock-in.
   count.
 - Grafana: provisioned dashboard (request rate, p95 latency, booking
   conflicts), fed by Prometheus scraping `/metrics`.
-
-## 9. Out of scope and future work
-
-Deliberately out of scope for this MVP; several are natural next steps.
-Ambiguity-driven scope decisions (auth, vehicle catalog, reschedule/cancel)
-are already captured in §2 and not repeated here.
-
-- **Rate limiting** — assumed internal service; add before public exposure.
-- **Multi-bay services and shift planning** — single-bay, fixed-duration
-  services.
-- **Notifications** — no email/SMS.
-- **Production-grade deployment** — TLS, auth for Grafana, managed Postgres,
-  app containerization (Dockerfile), and a CI pipeline.
-- **Horizontal Postgres scaling** — a single instance is fine at this scale.
-- **Pagination** for `GET /api/appointments` (keyset/cursor on `start_time`)
-  before production traffic.
-- **Resource load-balancing** — the first free bay/technician is chosen
-  deterministically; a least-loaded or fairness-aware selector is a natural
-  next step.
-- **Migrations under test** — the test harness builds the schema with
-  `create_all`; exercise the Alembic upgrade chain in CI.
-- **Retry backoff** — the booking retry loop is capped at 5 attempts without
-  backoff; add jittered backoff for hot-slot contention.
-- **OpenTelemetry tracing and alerting** — implement the §8 plan.
-- **Load testing** — benchmarks to quantify throughput and the retry success
-  rate under contention.
